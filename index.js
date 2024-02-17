@@ -313,8 +313,8 @@ function authenticateToken(req, res, next) {
   });
 }
 
+// Generate a random temporary key using crypto
 function generateTempKey() {
-  // Generate a random temporary key using crypto
   const tempKey = crypto.randomBytes(20).toString('hex');
   return tempKey;
 }
