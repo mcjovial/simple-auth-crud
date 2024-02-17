@@ -29,7 +29,7 @@ const userSchema = new mongoose.Schema({
   temp_key_expiry: Date,
   is_admin: Boolean,
   administrator: mongoose.Schema.Types.ObjectId, // Reference to admin user
-});
+}, { timestamps: true });
 
 const User = mongoose.model("User", userSchema);
 
@@ -126,6 +126,13 @@ app.put("/approve/:user_id", authenticateToken, async (req, res) => {
     const adminUser = await User.findOne({ _id: userId, is_admin: true });
     if (!adminUser) {
       return res.status(403).json({ message: "Only admins can approve users" });
+    }
+
+    // Check if there are any users where the authenticated user's ID matches the administrator field
+    const isAdministrator = await User.exists({ administrator: userId });
+    if (isAdministrator) {
+      // If the authenticated user is listed as an administrator for any user, handle the case accordingly
+      return res.status(403).json({ message: "You are already an administrator" });
     }
 
     // Find the user to approve
@@ -278,11 +285,18 @@ app.get("/pending", authenticateToken, async (req, res) => {
         .json({ message: "Only admins can access pending users" });
     }
 
-    // Find the earliest pending user (i.e., is_admin set to false and no temp_key)
+    // Check if there are any users where the authenticated user's ID matches the administrator field
+    const isAdministrator = await User.exists({ administrator: userId });
+    if (isAdministrator) {
+      // If the authenticated user is listed as an administrator for any user, handle the case accordingly
+      return res.status(403).json({ message: "You are already an administrator" });
+    }
+    
+    // Find the earliest pending user (i.e., is_admin set to false and no temp_key) based on the date created
     const pendingUser = await User.findOne({
       is_admin: false,
       temp_key: null,
-    }).sort({ _id: 1 });
+    }).sort({ createdAt: 1 });
 
     if (!pendingUser) {
       return res.status(404).json({ message: "No pending users found" });
@@ -311,13 +325,13 @@ function authenticateToken(req, res, next) {
     req.user = user;
     next();
   });
-}
+};
 
 // Generate a random temporary key using crypto
 function generateTempKey() {
   const tempKey = crypto.randomBytes(20).toString('hex');
   return tempKey;
-}
+};
 
 app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
