@@ -112,7 +112,7 @@ app.post("/sign-in", async (req, res) => {
       expiresIn: "1h", // Token expires in 1 hour
     });
 
-    res.status(200).json({ token, ...user, password: undefined });
+    res.status(200).json({ token, ...user._doc, password: undefined });
   } catch (error) {
     console.error("Error signing in:", error);
     res.status(500).json({ message: "Internal Server Error" });
