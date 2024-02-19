@@ -182,7 +182,7 @@ app.get("/pending", authenticateToken, async (req, res) => {
       return res.status(404).json({ message: "No pending users found" });
     }
 
-    res.status(200).json(pendingUser);
+    res.status(200).json([pendingUser]);
   } catch (error) {
     console.error("Error fetching pending user:", error);
     res.status(500).json({ message: "Internal Server Error" });
