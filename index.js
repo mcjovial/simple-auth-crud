@@ -38,6 +38,39 @@ const User = mongoose.model("User", userSchema);
 
 app.use(bodyParser.json());
 
+// Fetch All Users Endpoint
+app.get("/", async (req, res) => {
+  // const { userId } = req.user; // Retrieved from the JWT payload
+  const { search } = req.query;
+
+  try {
+    let users;
+    if (search) {
+      // If search query is provided, filter users by email or name
+      users = await User.find({
+        $or: [
+          { email: { $regex: search, $options: "i" } }, // Case-insensitive email search
+          { first_name: { $regex: search, $options: "i" } }, // Case-insensitive first name search
+          { last_name: { $regex: search, $options: "i" } }, // Case-insensitive last name search
+        ],
+      });
+    } else {
+      // If no search query provided, fetch all users
+      users = await User.find();
+    }
+
+    // // Filter out non-admin users if the authenticated user is not an admin
+    // if (!isAdmin) {
+    //   users = users.filter((user) => user.is_admin);
+    // }
+
+    res.status(200).json(users);
+  } catch (error) {
+    console.error("Error fetching users:", error);
+    res.status(500).json({ message: "Internal Server Error" });
+  }
+});
+
 // Sign-up Endpoint
 app.post("/sign-up", async (req, res) => {
   try {
@@ -115,6 +148,43 @@ app.post("/sign-in", async (req, res) => {
     res.status(200).json({ token, ...user._doc, password: undefined });
   } catch (error) {
     console.error("Error signing in:", error);
+    res.status(500).json({ message: "Internal Server Error" });
+  }
+});
+
+// Pending Users Endpoint
+app.get("/pending", authenticateToken, async (req, res) => {
+  const { userId } = req.user; // Retrieved from the JWT payload
+
+  try {
+    // Check if the authenticated user is an admin
+    const adminUser = await User.findOne({ _id: userId, is_admin: true });
+    if (!adminUser) {
+      return res
+        .status(403)
+        .json({ message: "Only admins can access pending users" });
+    }
+
+    // Check if there are any users where the authenticated user's ID matches the administrator field
+    const isAdministrator = await User.exists({ administrator: userId });
+    if (isAdministrator) {
+      // If the authenticated user is listed as an administrator for any user, handle the case accordingly
+      return res.status(403).json({ message: "You are already an administrator" });
+    }
+    
+    // Find the earliest pending user (i.e., is_admin set to false and no temp_key) based on the date created
+    const pendingUser = await User.findOne({
+      is_admin: false,
+      temp_key: null,
+    }).sort({ createdAt: 1 });
+
+    if (!pendingUser) {
+      return res.status(404).json({ message: "No pending users found" });
+    }
+
+    res.status(200).json(pendingUser);
+  } catch (error) {
+    console.error("Error fetching pending user:", error);
     res.status(500).json({ message: "Internal Server Error" });
   }
 });
@@ -242,38 +312,7 @@ app.delete("/delete/:user_id", authenticateToken, async (req, res) => {
   }
 });
 
-// Fetch All Users Endpoint
-app.get("/", async (req, res) => {
-  // const { userId } = req.user; // Retrieved from the JWT payload
-  const { search } = req.query;
 
-  try {
-    let users;
-    if (search) {
-      // If search query is provided, filter users by email or name
-      users = await User.find({
-        $or: [
-          { email: { $regex: search, $options: "i" } }, // Case-insensitive email search
-          { first_name: { $regex: search, $options: "i" } }, // Case-insensitive first name search
-          { last_name: { $regex: search, $options: "i" } }, // Case-insensitive last name search
-        ],
-      });
-    } else {
-      // If no search query provided, fetch all users
-      users = await User.find();
-    }
-
-    // // Filter out non-admin users if the authenticated user is not an admin
-    // if (!isAdmin) {
-    //   users = users.filter((user) => user.is_admin);
-    // }
-
-    res.status(200).json(users);
-  } catch (error) {
-    console.error("Error fetching users:", error);
-    res.status(500).json({ message: "Internal Server Error" });
-  }
-});
 
 // GET user by ID endpoint
 app.get('/:id', async (req, res) => {
@@ -291,43 +330,6 @@ app.get('/:id', async (req, res) => {
   } catch (error) {
     console.error('Error fetching user:', error);
     res.status(500).json({ message: 'Internal Server Error' });
-  }
-});
-
-// Pending Users Endpoint
-app.get("/pending", authenticateToken, async (req, res) => {
-  const { userId } = req.user; // Retrieved from the JWT payload
-
-  try {
-    // Check if the authenticated user is an admin
-    const adminUser = await User.findOne({ _id: userId, is_admin: true });
-    if (!adminUser) {
-      return res
-        .status(403)
-        .json({ message: "Only admins can access pending users" });
-    }
-
-    // Check if there are any users where the authenticated user's ID matches the administrator field
-    const isAdministrator = await User.exists({ administrator: userId });
-    if (isAdministrator) {
-      // If the authenticated user is listed as an administrator for any user, handle the case accordingly
-      return res.status(403).json({ message: "You are already an administrator" });
-    }
-    
-    // Find the earliest pending user (i.e., is_admin set to false and no temp_key) based on the date created
-    const pendingUser = await User.findOne({
-      is_admin: false,
-      temp_key: null,
-    }).sort({ createdAt: 1 });
-
-    if (!pendingUser) {
-      return res.status(404).json({ message: "No pending users found" });
-    }
-
-    res.status(200).json(pendingUser);
-  } catch (error) {
-    console.error("Error fetching pending user:", error);
-    res.status(500).json({ message: "Internal Server Error" });
   }
 });
 
