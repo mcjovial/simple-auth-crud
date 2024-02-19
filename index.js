@@ -169,7 +169,7 @@ app.get("/pending", authenticateToken, async (req, res) => {
     const isAdministrator = await User.exists({ administrator: userId });
     if (isAdministrator) {
       // If the authenticated user is listed as an administrator for any user, handle the case accordingly
-      return res.status(403).json({ message: "You are already an administrator" });
+      return res.status(200).json([]);
     }
     
     // Find the earliest pending user (i.e., is_admin set to false and no temp_key) based on the date created
