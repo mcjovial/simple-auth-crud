@@ -293,7 +293,7 @@ app.delete("/delete/:user_id", authenticateToken, async (req, res) => {
     }
 
     // Check if the authenticated user is an admin or the user to delete
-    if (userId !== userToDelete.administrator || userId === userToDelete._id.toString()) {
+    if (userId !== userToDelete.administrator.toString() || userId === userToDelete._id.toString()) {
       return res.status(400).json({ message: "Unauthorized" });
 
     }
